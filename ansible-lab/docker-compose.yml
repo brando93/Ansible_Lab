@@ -1,0 +1,15 @@
+services:
+  ansible-control:
+    build: ./control
+    container_name: ansible-control
+    volumes:
+      - .:/ansible
+
+  node1:
+    build: ./node
+    container_name: node1
+
+  node2:
+    build: ./node
+    container_name: node2
+
