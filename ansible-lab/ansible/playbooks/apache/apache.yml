@@ -2,6 +2,9 @@
 - name: Install and start Apache
   hosts: all
   become: true
+  vars:
+    nombre:  "Brandon"
+    apellido: "Rodriguez"
 
   tasks:
     - name: Ensure apache2 is installed

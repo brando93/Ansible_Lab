@@ -1,0 +1,20 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for apache_role
+- name: Ensure apache2 is installed
+  ansible.builtin.package:
+    name: apache2
+    state: present
+
+- name: Deploy index.html
+  ansible.builtin.template:
+    src: index.html.j2
+    dest: /var/www/html/index.html
+    mode: '0644'
+  notify: Restart apache2
+
+- name: Ensure apache2 is running
+  ansible.builtin.service:
+    name: apache2
+    state: started
+    enabled: true
