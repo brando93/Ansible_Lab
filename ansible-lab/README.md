@@ -39,9 +39,18 @@ Create the project directory and file structure:
 ```bash
 cd ~/Desktop
 
-mkdir -p ansible-lab/{ansible,control/node,node}
+mkdir -p ansible-lab/{ansible,control,jenkins,node}
 
-touch ansible-lab/{docker-compose.yml,ansible/{inventory,playbook.yml},control/{Dockerfile,node/authorized_keys},node/{Dockerfile,authorized_keys}}
+touch ansible-lab/docker-compose.yml
+touch ansible-lab/README.md
+
+touch ansible-lab/ansible/{ansible.cfg,inventory}
+touch ansible-lab/ansible/playbooks/deploy_apache.yml
+
+touch ansible-lab/control/Dockerfile
+touch ansible-lab/node/Dockerfile
+
+touch ansible-lab/jenkins/{Dockerfile,Jenkinsfile}
 ```
 
 Generate an SSH key pair for Ansible:
@@ -58,20 +67,40 @@ id_ed25519.pub (public key)
 Final directory structure:
 
 ```bash
-ansible-lab/
-├── ansible/
+.
+├── ansible
+│   ├── ansible.cfg
 │   ├── inventory
-│   └── playbook.yml
-├── control/
+│   ├── playbooks
+│   │   └── deploy_apache.yml
+│   └── roles
+│       └── apache_role
+│           ├── handlers
+│           │   └── main.yml
+│           ├── README.md
+│           ├── tasks
+│           │   └── main.yml
+│           ├── templates
+│           │   ├── index.html.j2
+│           │   └── motd.j2
+│           └── vars
+│               └── main.yml
+├── control
 │   ├── Dockerfile
 │   ├── id_ed25519
 │   ├── id_ed25519.pub
-│   └── node/
+│   └── node
 │       └── authorized_keys
-├── node/
+├── docker-compose.yml
+├── jenkins
 │   ├── Dockerfile
-│   └── authorized_keys
-└── docker-compose.yml
+│   └── Jenkinsfile
+├── node
+│   ├── authorized_keys
+│   └── Dockerfile
+└── README.md
+
+13 directories, 19 files
 ```
 
 
@@ -99,8 +128,9 @@ File: control/Dockerfile
 ```bash
 FROM quay.io/ansible/ansible-runner:latest
 
-RUN mkdir -p /root/.ssh
+USER root
 
+RUN mkdir -p /root/.ssh
 COPY id_ed25519 /root/.ssh/id_ed25519
 COPY id_ed25519.pub /root/.ssh/id_ed25519.pub
 
@@ -108,6 +138,7 @@ RUN chmod 600 /root/.ssh/id_ed25519 && \
     chmod 644 /root/.ssh/id_ed25519.pub
 
 WORKDIR /ansible
+CMD ["sleep", "infinity"]
 ```
 
 Purpose:
@@ -150,7 +181,54 @@ Installs Python (required by Ansible)
 Allows SSH access using keys only
 
 
-6. Docker Compose Configuration
+6. Jenkins Dockerfile
+
+File: Dockerfile
+
+```bash
+FROM jenkins/jenkins:lts
+
+USER root
+
+# Necesario para docker exec
+RUN apt-get update && \
+    apt-get install -y docker.io ssh && \
+    rm -rf /var/lib/apt/lists/*
+
+USER jenkins
+```
+
+File: Jenkinsfile
+
+```bash
+pipeline {
+  agent any
+
+  stages {
+
+    stage('Check environment') {
+      steps {
+        echo 'Checking containers...'
+        sh 'docker ps'
+      }
+    }
+
+    stage('Run Ansible Playbook') {
+      steps {
+        echo 'Deploying Apache using Ansible'
+        sh '''
+          docker exec ansible-control \
+          ansible-playbook ansible/ansible/playbooks/deploy_apache.yml
+        '''
+      }
+    }
+
+  }
+}
+```
+
+
+7. Docker Compose Configuration
 
 File: docker-compose.yml
 
@@ -160,8 +238,7 @@ services:
     build: ./control
     container_name: ansible-control
     volumes:
-      - ./ansible:/ansible
-    tty: true
+      - .:/ansible
 
   node1:
     build: ./node
@@ -170,6 +247,20 @@ services:
   node2:
     build: ./node
     container_name: node2
+
+  jenkins:
+    build: ./jenkins
+    image: jenkins/jenkins:lts
+    container_name: jenkins
+    user: root
+    ports:
+      - "8080:8080"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  jenkins_home:
 ```
 
 Purpose:
@@ -179,7 +270,7 @@ Mounts Ansible files into the control node
 Creates an isolated Docker network automatically
 
 
-7. Ansible Inventory
+8. Ansible Inventory
 
 File: ansible/inventory
 
@@ -195,7 +286,7 @@ Defines managed hosts
 Uses Docker service name as hostname
 Uses the ansible user created in the node container
 
-8. Ansible Playbook
+9. Ansible Playbook
 
 File: ansible/playbook.yml
 
@@ -217,7 +308,7 @@ Tests SSH connectivity
 Tests privilege escalation
 Tests package management
 
-9. Build and Start the Lab
+10. Build and Start the Lab
 
 From the project root:
 
@@ -230,7 +321,7 @@ Builds both images
 Starts the containers
 Keeps SSH keys persistent inside images
 
-10. Access the Control Node
+11. Access the Control Node
 
 > docker exec -it ansible-control bash
 
@@ -239,14 +330,33 @@ Inside the container, verify connectivity:
 
 > ansible all -i inventory -m ping
 
+Now on your local open localhost browser
 
-Run the playbook:
+> http://localhost:8080
 
-> ansible-playbook -i inventory playbook.yml
+Paste output from jenkins container
 
-11. Stop and Remove the Lab
+> docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+
+Configure Jenkins:
+
+- Set default plugins config
+- Skip admin user config
+- Instance configuration Save and Finsh
+- Create Job > Pipeline
+- Scroll to Pipeline > Definition > Pipeline script
+- Paste jenkinsfile in script area
+- Apply + Save
+
+12. Down the environment but keep it ready for next time
+
+> docker compose down
+
+13. Stop and Remove the Lab completely
 
 > docker compose down -v
+> docker compose down --remove-orphans
+> docker system prune -a --volumes
 
 
 This removes:
@@ -255,9 +365,10 @@ Containers
 Docker network
 Volumes created by Compose
 
-12. Full Docker Cleanup (Optional)
-
-> docker system prune -a --volumes
-
 
 ⚠️ Warning: This removes all unused Docker resources (containers, images, volumes, networks).
+
+
+14. Start the lab again where you left it
+
+> docker compose up -d
