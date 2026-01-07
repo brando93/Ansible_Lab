@@ -20,6 +20,11 @@
     tag: latest
   register: build_result
 
+- name: Create volume for model cache
+  docker_volume:
+    name: "fastapi-cache-{{ env }}"
+    state: present
+
 - name: Stop old FastAPI container
   docker_container:
     name: fastapi
@@ -33,5 +38,8 @@
     restart_policy: always
     ports:
       - "{{ fastapi_port }}:8000"
+    volumes:
+      - "fastapi-cache-{{ env }}:/app/.cache"
     env:
       ENV: "{{ env }}"
+      MODEL_MODE: "{{ model_mode }}"

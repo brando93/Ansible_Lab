@@ -1,2 +1,4 @@
 fastapi_port: 8002
 env: prod
+# Modo full para producción con modelo real de IA
+model_mode: full
