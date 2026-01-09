@@ -1,0 +1,74 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# SSH Keys (IMPORTANT - Never commit private keys!)
+ansible-lab/control/id_ed25519
+ansible-lab/control/id_ed25519.pub
+ansible-lab/node/authorized_keys
+ansible-lab/control/node/authorized_keys
+
+# Docker
+.dockerignore
+
+# Jenkins
+ansible-lab/jenkins_home/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# AI Model Cache (optional - uncomment if you don't want to track)
+# .cache/
+# huggingface/
+
+# Environment variables (if you add any)
+.env
+.env.local
+.env.*.local
+
+# Backup files
+*.bak
+*.backup

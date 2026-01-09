@@ -1,4 +1,3 @@
 fastapi_port: 8001
 env: dev
-# Modo mock para desarrollo rápido (cambia a 'full' para modelo real)
 model_mode: mock

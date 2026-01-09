@@ -1,379 +1,555 @@
-# Ansible Docker Lab (Local Practice on macOS)
+# 🚀 Ansible Lab - CI/CD Pipeline with Jenkins & FastAPI
 
-This document describes the **exact steps followed** to build a simple and reproducible **local Ansible lab using Docker and Docker Compose** on macOS.
+[![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white)](https://www.docker.com/)
+[![Ansible](https://img.shields.io/badge/Ansible-EE0000?style=flat&logo=ansible&logoColor=white)](https://www.ansible.com/)
+[![Jenkins](https://img.shields.io/badge/Jenkins-D24939?style=flat&logo=jenkins&logoColor=white)](https://www.jenkins.io/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
 
-The Purpose: of this lab is to practice Ansible fundamentals using containers instead of virtual machines.
-
----
-
-## Lab Goals
-
-- Practice Ansible basics locally
-- Use **SSH key-based authentication**
-- Avoid manual SSH setup on every run
-- Use Docker containers as:
-  - **Ansible control node**
-  - **Managed nodes**
+> **Complete CI/CD infrastructure lab** using Docker, Ansible, Jenkins, and FastAPI with AI capabilities. Perfect for learning DevOps practices locally on macOS.
 
 ---
 
-## 1. Prerequisites
+## 📋 Table of Contents
 
-- macOS
-- Docker Desktop installed and running
-- Docker Compose (included with Docker Desktop)
-- Basic terminal knowledge
+- [Overview](#-overview)
+- [Architecture](#-architecture)
+- [Features](#-features)
+- [Prerequisites](#-prerequisites)
+- [Quick Start](#-quick-start)
+- [Project Structure](#-project-structure)
+- [Components](#-components)
+- [Usage](#-usage)
+- [API Documentation](#-api-documentation)
+- [Troubleshooting](#-troubleshooting)
+- [Contributing](#-contributing)
 
-Verify Docker is working:
+---
 
-```bash
-docker version
-docker compose version
+## 🎯 Overview
+
+This project demonstrates a **complete DevOps pipeline** running entirely in Docker containers:
+
+- **Jenkins** orchestrates CI/CD workflows
+- **Ansible** manages infrastructure as code
+- **FastAPI** provides a production-ready AI-powered REST API
+- **Docker** containerizes everything for portability
+
+Perfect for:
+- 🎓 Learning DevOps practices
+- 🧪 Testing Ansible playbooks locally
+- 🚀 Prototyping CI/CD pipelines
+- 🤖 Experimenting with AI APIs
+
+---
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                          HOST MACHINE (macOS)                        │
+│                                                                       │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │                    Docker Environment                        │   │
+│  │                                                               │   │
+│  │  ┌──────────────┐         ┌─────────────────────────────┐  │   │
+│  │  │   Jenkins    │         │   Ansible Control Node      │  │   │
+│  │  │   :8080      │────────▶│   - Ansible Core            │  │   │
+│  │  │              │  Exec   │   - Python 3                │  │   │
+│  │  │  - Pipeline  │         │   - SSH Keys                │  │   │
+│  │  │  - Jobs      │         │   - Docker CLI              │  │   │
+│  │  └──────┬───────┘         └────────┬────────────────────┘  │   │
+│  │         │                          │                        │   │
+│  │         │                          │ SSH                    │   │
+│  │         │                          ▼                        │   │
+│  │         │         ┌────────────────────────────────┐       │   │
+│  │         │         │   ansible-lab_ansible-net      │       │   │
+│  │         │         │   (Docker Network)             │       │   │
+│  │         │         └────────────────────────────────┘       │   │
+│  │         │                          │                        │   │
+│  │         │         ┌────────────────┴────────────────┐      │   │
+│  │         │         │                                  │      │   │
+│  │         │    ┌────▼─────┐                    ┌──────▼────┐ │   │
+│  │         │    │   DEV    │                    │   PROD    │ │   │
+│  │         │    │  Node    │                    │   Node    │ │   │
+│  │         │    │          │                    │           │ │   │
+│  │         │    │ ┌──────┐ │                    │ ┌───────┐ │ │   │
+│  │         │    │ │FastAPI│ │                    │ │FastAPI│ │ │   │
+│  │         └───▶│ │:8001 │ │                    │ │:8002  │ │ │   │
+│  │   HTTP       │ │      │ │                    │ │       │ │ │   │
+│  │              │ │Mock  │ │                    │ │Full AI│ │ │   │
+│  │              │ │Mode  │ │                    │ │Model  │ │ │   │
+│  │              │ └──────┘ │                    │ └───────┘ │ │   │
+│  │              │          │                    │           │ │   │
+│  │              │ - Docker │                    │ - Docker  │ │   │
+│  │              │ - SSH    │                    │ - SSH     │ │   │
+│  │              │ - Python │                    │ - Python  │ │   │
+│  │              └──────────┘                    └───────────┘ │   │
+│  │                                                             │   │
+│  │  ┌──────────────────────────────────────────────────────┐ │   │
+│  │  │              Persistent Volumes                       │ │   │
+│  │  │  - jenkins_home (Jenkins data)                       │ │   │
+│  │  │  - fastapi-cache-dev (AI model cache)               │ │   │
+│  │  │  - fastapi-cache-prod (AI model cache)              │ │   │
+│  │  └──────────────────────────────────────────────────────┘ │   │
+│  └───────────────────────────────────────────────────────────┘   │
+└───────────────────────────────────────────────────────────────────┘
 ```
 
-2. Project Structure Creation
+### 🔄 CI/CD Workflow
 
-Create the project directory and file structure:
+```
+┌──────────┐      ┌──────────┐      ┌──────────┐      ┌──────────┐
+│  User    │      │ Jenkins  │      │ Ansible  │      │  Target  │
+│ Triggers │─────▶│ Pipeline │─────▶│ Control  │─────▶│   Node   │
+│   Job    │      │          │      │          │      │ (dev/prod)│
+└──────────┘      └──────────┘      └──────────┘      └──────────┘
+                        │                  │                 │
+                        │                  │                 │
+                        ▼                  ▼                 ▼
+                  1. Build Image    2. Copy Files    3. Deploy App
+                  2. Start Container 3. Build Image   4. Run Container
+                  3. Execute Ansible 4. Run Playbook  5. Health Check
+```
 
+---
+
+## ✨ Features
+
+### 🎯 Core Features
+- ✅ **Complete CI/CD Pipeline** with Jenkins
+- ✅ **Infrastructure as Code** with Ansible
+- ✅ **Multi-Environment Support** (dev/prod)
+- ✅ **Containerized Everything** - No local dependencies
+- ✅ **SSH Key-Based Authentication** - Secure by default
+- ✅ **Persistent Storage** - Data survives container restarts
+
+### 🤖 FastAPI Application
+- ✅ **Dual Mode Operation**:
+  - **Mock Mode**: Instant responses for development
+  - **Full Mode**: Real AI model (distilgpt2) for production
+- ✅ **AI Text Generation** using Hugging Face Transformers
+- ✅ **Health Check Endpoints**
+- ✅ **Environment-Specific Configuration**
+- ✅ **Model Caching** - Fast restarts after first run
+
+### 🔧 DevOps Features
+- ✅ **Ansible Roles** for modular deployment
+- ✅ **Docker-in-Docker** support
+- ✅ **Automated Testing** via Jenkins
+- ✅ **Volume Persistence** for caches and data
+- ✅ **Network Isolation** with Docker networks
+
+---
+
+## 📦 Prerequisites
+
+- **macOS** (tested on macOS 12+)
+- **Docker Desktop** (4.0+)
+- **Docker Compose** (included with Docker Desktop)
+- **4GB RAM** minimum (8GB recommended for Full AI mode)
+- **10GB disk space** for images and caches
+
+### Verify Installation
+
+```bash
+docker --version
+# Docker version 24.0.0 or higher
+
+docker compose version
+# Docker Compose version v2.20.0 or higher
+```
+
+---
+
+## 🚀 Quick Start
+
+### 1️⃣ Clone the Repository
 
 ```bash
 cd ~/Desktop
-
-mkdir -p ansible-lab/{ansible,control,jenkins,node}
-
-touch ansible-lab/docker-compose.yml
-touch ansible-lab/README.md
-
-touch ansible-lab/ansible/{ansible.cfg,inventory}
-touch ansible-lab/ansible/playbooks/deploy_apache.yml
-
-touch ansible-lab/control/Dockerfile
-touch ansible-lab/node/Dockerfile
-
-touch ansible-lab/jenkins/{Dockerfile,Jenkinsfile}
+git clone <your-repo-url>
+cd Ansible_Lab/ansible-lab
 ```
 
-Generate an SSH key pair for Ansible:
+### 2️⃣ Start the Environment
 
 ```bash
-ssh-keygen -t ed25519 -f ansible-lab/control/id_ed25519 -N ""
+docker compose up -d --build
 ```
 
-This creates:
+This will:
+- Build all Docker images (~5-10 minutes first time)
+- Start all containers
+- Create necessary networks and volumes
 
-id_ed25519 (private key)
-id_ed25519.pub (public key)
+### 3️⃣ Access Jenkins
 
-Final directory structure:
+1. Open browser: http://localhost:8080
+2. Get initial password:
+   ```bash
+   docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+   ```
+3. Install suggested plugins
+4. Create admin user (or skip)
+5. Save and finish
+
+### 4️⃣ Create Jenkins Pipeline
+
+1. Click **"New Item"**
+2. Enter name: `Ansible-Lab`
+3. Select **"Pipeline"**
+4. Scroll to **Pipeline** section
+5. Select **"Pipeline script"**
+6. Copy content from `ansible-lab/jenkins/Jenkinsfile`
+7. Click **"Save"**
+
+### 5️⃣ Run Your First Deployment
+
+1. Click **"Build with Parameters"**
+2. Select environment: `dev` or `prod`
+3. Click **"Build"**
+4. Watch the pipeline execute!
+
+### 6️⃣ Test the API
 
 ```bash
-.
-├── ansible
-│   ├── ansible.cfg
-│   ├── inventory
-│   ├── playbooks
-│   │   └── deploy_apache.yml
-│   └── roles
-│       └── apache_role
-│           ├── handlers
-│           │   └── main.yml
-│           ├── README.md
-│           ├── tasks
-│           │   └── main.yml
-│           ├── templates
-│           │   ├── index.html.j2
-│           │   └── motd.j2
-│           └── vars
-│               └── main.yml
-├── control
-│   ├── Dockerfile
-│   ├── id_ed25519
-│   ├── id_ed25519.pub
-│   └── node
-│       └── authorized_keys
-├── docker-compose.yml
-├── jenkins
-│   ├── Dockerfile
-│   └── Jenkinsfile
-├── node
-│   ├── authorized_keys
-│   └── Dockerfile
-└── README.md
+# Health check
+curl http://localhost:8001/health
 
-13 directories, 19 files
+# Make a prediction (mock mode)
+curl -X POST http://localhost:8001/predict \
+  -H "Content-Type: application/json" \
+  -d '{"text": "hello"}'
 ```
 
+---
 
+## 📁 Project Structure
 
-3. Prepare SSH Access for Managed Nodes
-
-Copy the public key into authorized_keys:
-
-```bash
-cat control/id_ed25519.pub > node/authorized_keys
-cp node/authorized_keys control/node/authorized_keys
+```
+Ansible_Lab/
+├── README.md                          # This file
+├── .venv/                            # Python virtual environment
+└── ansible-lab/                      # Main project directory
+    ├── docker-compose.yml            # Container orchestration
+    │
+    ├── ansible/                      # Ansible configuration
+    │   ├── ansible.cfg              # Ansible settings
+    │   ├── inventory/               # Host inventories
+    │   │   ├── dev.ini             # Dev environment hosts
+    │   │   └── prod.ini            # Prod environment hosts
+    │   ├── group_vars/              # Environment variables
+    │   │   ├── dev.yml             # Dev configuration
+    │   │   └── prod.yml            # Prod configuration
+    │   ├── playbooks/               # Ansible playbooks
+    │   │   └── deploy_fastapi.yml  # FastAPI deployment
+    │   └── roles/                   # Ansible roles
+    │       ├── docker/             # Docker installation role
+    │       │   └── tasks/
+    │       │       └── main.yml
+    │       └── fastapi/            # FastAPI deployment role
+    │           ├── README.md
+    │           └── tasks/
+    │               └── main.yml
+    │
+    ├── control/                      # Ansible control node
+    │   ├── Dockerfile               # Control node image
+    │   ├── id_ed25519              # SSH private key
+    │   ├── id_ed25519.pub          # SSH public key
+    │   └── node/
+    │       └── authorized_keys     # SSH authorized keys
+    │
+    ├── node/                         # Managed nodes (dev/prod)
+    │   ├── Dockerfile               # Node image
+    │   └── authorized_keys         # SSH authorized keys
+    │
+    ├── jenkins/                      # Jenkins CI/CD
+    │   ├── Dockerfile               # Jenkins image
+    │   └── Jenkinsfile             # Pipeline definition
+    │
+    └── fastapi/                      # FastAPI application
+        ├── Dockerfile               # App image
+        ├── README.md               # App documentation
+        ├── requirements.txt        # Python dependencies
+        └── app/                    # Application code
+            ├── __init__.py
+            ├── main.py            # FastAPI app
+            ├── model.py           # AI model
+            └── schemas.py         # Pydantic models
 ```
 
-Purpose::
+---
 
-Allows the control node to SSH into managed nodes
-Ensures key-based auth is baked into images
-Avoids reconfiguring keys every time containers restart
+## 🔧 Components
 
+### 🎛️ Jenkins (Port 8080)
+- **Purpose**: CI/CD orchestration
+- **Features**:
+  - Pipeline as Code (Jenkinsfile)
+  - Multi-environment deployment
+  - Docker-in-Docker support
+  - Automated testing
 
-4. Control Node Dockerfile
+### 🤖 Ansible Control Node
+- **Purpose**: Configuration management
+- **Features**:
+  - SSH key-based authentication
+  - Modular roles (docker, fastapi)
+  - Inventory management
+  - Idempotent deployments
 
-File: control/Dockerfile
+### 🖥️ Managed Nodes (dev/prod)
+- **DEV Node** (Port 8001):
+  - Mock AI mode (fast)
+  - Development testing
+  - Quick iterations
+  
+- **PROD Node** (Port 8002):
+  - Full AI model (distilgpt2)
+  - Production-ready
+  - Model caching enabled
+
+### 🚀 FastAPI Application
+- **Framework**: FastAPI + Uvicorn
+- **AI Model**: distilgpt2 (Hugging Face)
+- **Features**:
+  - Text generation
+  - Health checks
+  - Environment awareness
+  - Dual mode operation
+
+---
+
+## 📖 Usage
+
+### Managing the Environment
 
 ```bash
-FROM quay.io/ansible/ansible-runner:latest
+# Start all containers
+docker compose up -d
 
-USER root
+# Stop all containers (keeps data)
+docker compose down
 
-RUN mkdir -p /root/.ssh
-COPY id_ed25519 /root/.ssh/id_ed25519
-COPY id_ed25519.pub /root/.ssh/id_ed25519.pub
+# View logs
+docker compose logs -f
 
-RUN chmod 600 /root/.ssh/id_ed25519 && \
-    chmod 644 /root/.ssh/id_ed25519.pub
+# Rebuild after changes
+docker compose up -d --build
 
-WORKDIR /ansible
-CMD ["sleep", "infinity"]
+# Complete cleanup (removes volumes)
+docker compose down -v
 ```
 
-Purpose:
-
-Uses the official Ansible Runner image
-Installs SSH keys for outbound connections
-Sets /ansible as working directory for playbooks
-
-
-5. Managed Node Dockerfile
-
-File: node/Dockerfile
+### Accessing Containers
 
 ```bash
-FROM ubuntu:22.04
+# Access Ansible control node
+docker exec -it ansible-control bash
 
-RUN apt-get update && \
-    apt-get install -y openssh-server python3 sudo && \
-    mkdir /var/run/sshd
+# Access Jenkins
+docker exec -it jenkins bash
 
-RUN useradd -m ansible && \
-    echo "ansible ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+# Access dev node
+docker exec -it dev bash
 
-RUN mkdir -p /home/ansible/.ssh
-COPY authorized_keys /home/ansible/.ssh/authorized_keys
-
-RUN chown -R ansible:ansible /home/ansible/.ssh && \
-    chmod 700 /home/ansible/.ssh && \
-    chmod 600 /home/ansible/.ssh/authorized_keys
-
-EXPOSE 22
-CMD ["/usr/sbin/sshd", "-D"]
+# Access prod node
+docker exec -it prod bash
 ```
 
-Purpose:
-
-Creates an SSH-enabled Ubuntu node
-Adds an ansible user with passwordless sudo
-Installs Python (required by Ansible)
-Allows SSH access using keys only
-
-
-6. Jenkins Dockerfile
-
-File: Dockerfile
+### Running Ansible Manually
 
 ```bash
-FROM jenkins/jenkins:lts
+# Enter control node
+docker exec -it ansible-control bash
 
-USER root
+# Navigate to Ansible directory
+cd /ansible/ansible
 
-# Necesario para docker exec
-RUN apt-get update && \
-    apt-get install -y docker.io ssh && \
-    rm -rf /var/lib/apt/lists/*
+# Test connectivity
+ansible all -i inventory/dev.ini -m ping
 
-USER jenkins
+# Run playbook manually
+ansible-playbook -i inventory/dev.ini playbooks/deploy_fastapi.yml
 ```
 
-File: Jenkinsfile
+### Switching AI Modes
 
+**Change DEV to Full AI Mode:**
+```yaml
+# Edit: ansible-lab/ansible/inventory/dev.ini
+model_mode=full  # Change from 'mock' to 'full'
+```
+
+**Change PROD to Mock Mode:**
+```yaml
+# Edit: ansible-lab/ansible/inventory/prod.ini
+model_mode=mock  # Change from 'full' to 'mock'
+```
+
+Then redeploy via Jenkins or manually.
+
+---
+
+## 🌐 API Documentation
+
+### Base URLs
+- **DEV**: http://localhost:8001
+- **PROD**: http://localhost:8002
+
+### Endpoints
+
+#### Health Check
 ```bash
-pipeline {
-  agent any
-  parameters {
-      choice(name: 'ENV', choices: ['dev','prod'], description: 'Selecciona el entorno')
-  }
+GET /health
 
-  stages {
-
-    stage('Check environment') {
-      steps {
-        echo 'Checking containers...'
-        sh 'docker ps'
-      }
-    }
-
-    stage('Run Ansible Playbook') {
-      steps {
-        echo "Deploying Apache using Ansible to ${params.ENV}"
-        sh """
-          docker exec ansible-control bash -c \"
-            cd /ansible/ansible &&
-            ansible-playbook playbooks/deploy_apache.yml --limit ${params.ENV}
-          \"
-        """
-      }
-    }
-
-  }
+# Response
+{
+  "status": "ok",
+  "environment": "dev"
 }
 ```
 
-
-7. Docker Compose Configuration
-
-File: docker-compose.yml
-
+#### Text Prediction
 ```bash
-services:
-  ansible-control:
-    build: ./control
-    container_name: ansible-control
-    volumes:
-      - .:/ansible
+POST /predict
+Content-Type: application/json
 
-  node1:
-    build: ./node
-    container_name: node1
+{
+  "text": "Your input text here"
+}
 
-  node2:
-    build: ./node
-    container_name: node2
-
-  jenkins:
-    build: ./jenkins
-    image: jenkins/jenkins:lts
-    container_name: jenkins
-    user: root
-    ports:
-      - "8080:8080"
-    volumes:
-      - jenkins_home:/var/jenkins_home
-      - /var/run/docker.sock:/var/run/docker.sock
-
-volumes:
-  jenkins_home:
+# Response
+{
+  "result": "Generated text response..."
+}
 ```
 
-Purpose:
+### Example Requests
 
-Builds both images locally
-Mounts Ansible files into the control node
-Creates an isolated Docker network automatically
-
-
-8. Ansible Inventory
-
-File: ansible/inventory
-
+**Mock Mode (Fast):**
 ```bash
-[node]
-node1 ansible_user=ansible ansible_host=node1
-node2 ansible_user=ansible ansible_host=node2
+curl -X POST http://localhost:8001/predict \
+  -H "Content-Type: application/json" \
+  -d '{"text": "hello"}'
+
+# Response: Instant predefined response
 ```
 
-Purpose:
-
-Defines managed hosts
-Uses Docker service name as hostname
-Uses the ansible user created in the node container
-
-9. Ansible Playbook
-
-File: ansible/playbook.yml
-
+**Full Mode (AI):**
 ```bash
-- hosts: node
-  become: true
-  tasks:
-    - name: Ensure curl is installed
-      apt:
-        name: curl
-        state: present
-        update_cache: true
+curl -X POST http://localhost:8002/predict \
+  -H "Content-Type: application/json" \
+  -d '{"text": "The future of AI is"}'
+
+# Response: AI-generated continuation
 ```
 
-Purpose:
+---
 
-Simple validation playbook
-Tests SSH connectivity
-Tests privilege escalation
-Tests package management
+## 🐛 Troubleshooting
 
-10. Build and Start the Lab
+### Jenkins Can't Access Containers
 
-From the project root:
+**Problem**: Jenkins pipeline fails with "container not found"
 
-> docker compose up -d --build
+**Solution**:
+```bash
+# Ensure all containers are running
+docker ps
+
+# Restart Jenkins
+docker restart jenkins
+```
+
+### Ansible SSH Connection Failed
+
+**Problem**: "Permission denied (publickey)"
+
+**Solution**:
+```bash
+# Verify SSH keys exist
+ls -la ansible-lab/control/id_ed25519*
+
+# Rebuild containers
+docker compose down
+docker compose up -d --build
+```
+
+### FastAPI Container Won't Start
+
+**Problem**: Container exits immediately
+
+**Solution**:
+```bash
+# Check logs
+docker logs dev  # or prod
+
+# Common issues:
+# 1. Port already in use
+# 2. Missing dependencies
+# 3. Syntax error in code
+
+# Rebuild
+docker compose up -d --build
+```
+
+### AI Model Download Slow
+
+**Problem**: First startup takes forever
+
+**Solution**:
+- This is normal for first run (~2 minutes)
+- Model is cached in volume for future runs
+- Use mock mode for development
+- Ensure good internet connection
+
+### Port Already in Use
+
+**Problem**: "port is already allocated"
+
+**Solution**:
+```bash
+# Find process using port
+lsof -i :8080  # or :8001, :8002
+
+# Kill process or change port in docker-compose.yml
+```
+
+---
+
+## 🎓 Learning Resources
+
+### Concepts Demonstrated
+
+1. **CI/CD Pipeline**: Jenkins → Ansible → Docker
+2. **Infrastructure as Code**: Ansible playbooks and roles
+3. **Containerization**: Multi-container Docker application
+4. **Configuration Management**: Environment-specific configs
+5. **API Development**: RESTful API with FastAPI
+6. **AI Integration**: Hugging Face Transformers
+7. **DevOps Best Practices**: Automation, testing, deployment
 
 
-This:
+---
 
-Builds both images
-Starts the containers
-Keeps SSH keys persistent inside images
+### Development Workflow
 
-11. Access the Control Node
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test locally
+5. Submit a pull request
 
-> docker exec -it ansible-control bash
+---
 
+## 🙏 Acknowledgments
 
-Inside the container, verify connectivity:
+- **Ansible** - Configuration management
+- **Jenkins** - CI/CD automation
+- **FastAPI** - Modern Python web framework
+- **Hugging Face** - AI models and transformers
+- **Docker** - Containerization platform
 
-> ansible all -i inventory -m ping
-
-Now on your local open localhost browser
-
-> http://localhost:8080
-
-Paste output from jenkins container
-
-> docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
-
-Configure Jenkins:
-
-- Set default plugins config
-- Skip admin user config
-- Instance configuration Save and Finsh
-- Create Job > Pipeline
-- Scroll to Pipeline > Definition > Pipeline script
-- Paste jenkinsfile in script area
-- Apply + Save
-
-12. Down the environment but keep it ready for next time
-
-> docker compose down
-
-13. Stop and Remove the Lab completely
-
-> docker compose down -v
-> docker compose down --remove-orphans
-> docker system prune -a --volumes
-
-
-This removes:
-
-Containers
-Docker network
-Volumes created by Compose
-
-
-⚠️ Warning: This removes all unused Docker resources (containers, images, volumes, networks).
-
-
-14. Start the lab again where you left it
-
-> docker compose up -d
+---
